@@ -34,8 +34,8 @@ Instead of naively splitting text by a fixed character count, this tool uses the
 
 1.  Clone the repository or download the `chonker.py` script.
     ```sh
-    git clone https://github.com/your-username/smart-text-chunker.git
-    cd smart-text-chunker
+    git clone https://github.com/FartyPants/chonker.git
+    cd chonker
     ```
 2.  The script is ready to use. You can run it directly with `python`.
 
