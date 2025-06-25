@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, List
 
 # --- Sizing, Splitting, and Formatting Logic (mostly unchanged) ---
-
+# ... (estimate_token_count, split_into_sentences, smart_chunker, etc. are identical to the last version)
 def estimate_token_count(text: str) -> int:
     """Estimates the token count of a string using a word- and punctuation-based heuristic."""
     if not text: return 0
@@ -26,31 +26,14 @@ def split_into_sentences(text: str) -> list[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 def remove_leading_title(chunk: str, max_title_tokens: int, size_func: Callable[[str], int]) -> str:
-    """
-    If a chunk starts with a short line followed by a double newline,
-    and that line is smaller than max_title_tokens, it's considered a title
-    and removed.
-    """
-    if max_title_tokens <= 0:
-        return chunk
-
-    # Find the position of the first double newline
+    """If a chunk starts with a short line followed by a double newline, it's considered a title and removed."""
+    if max_title_tokens <= 0: return chunk
     try:
         split_pos = chunk.index('\n\n')
-        
-        # The potential title is the text before this position
         potential_title = chunk[:split_pos].strip()
-        
-        # Check if the title is short enough and doesn't contain sentence-ending punctuation
-        # (real titles usually don't end with a period).
-        if potential_title and size_func(potential_title) <= max_title_tokens and '.' not in potential_title and '?' not in potential_title:
-            # Return the rest of the chunk, stripping leading whitespace
+        if potential_title and size_func(potential_title) <= max_title_tokens and not any(p in potential_title for p in '.?!'):
             return chunk[split_pos:].lstrip()
-            
-    except ValueError:
-        # No double newline found, so no title to strip
-        pass
-
+    except ValueError: pass
     return chunk
 
 def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
@@ -58,16 +41,14 @@ def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[
     CHAPTER_DELIMITER, PARAGRAPH_DELIMITER = "\n\n\n", "\n\n"
     final_chunks = []
     text = text.replace('\r\n', '\n').strip()
-    chapters = text.split(CHAPTER_DELIMITER)
-
+    
     def finalize_chunk(chunk: str):
-        """Helper to process and add a chunk to the final list."""
         if chunk:
-            # Apply title removal before size check
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
             if size_func(processed_chunk) >= min_size:
                 final_chunks.append(processed_chunk)
 
+    chapters = text.split(CHAPTER_DELIMITER)
     for chapter in chapters:
         chapter = chapter.strip()
         if not chapter: continue
@@ -82,26 +63,20 @@ def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[
                 finalize_chunk(current_chunk)
                 if size_func(paragraph) > max_size:
                     sub_chunks = split_oversized_text_block(paragraph, max_size, min_size, size_func, title_token_limit)
-                    # Sub-chunks are already processed, so just extend
                     final_chunks.extend(sub_chunks)
                     current_chunk = ""
                 else:
                     current_chunk = paragraph
         finalize_chunk(current_chunk)
-            
     return final_chunks
 
 def split_oversized_text_block(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
-    """Handles a block of text that is too large, splitting by sentences or lines."""
-    sentences = split_into_sentences(text)
-    sub_chunks, current_sub_chunk = [], ""
-
+    sentences, sub_chunks, current_sub_chunk = split_into_sentences(text), [], ""
     def finalize_sub_chunk(chunk: str):
         if chunk:
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
             if size_func(processed_chunk) >= min_size:
                 sub_chunks.append(processed_chunk)
-
     for sentence in sentences:
         prospective_chunk = sentence if not current_sub_chunk else f"{current_sub_chunk} {sentence}"
         if size_func(prospective_chunk) <= max_size:
@@ -118,15 +93,12 @@ def split_oversized_text_block(text: str, max_size: int, min_size: int, size_fun
     return sub_chunks
 
 def split_by_lines(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
-    """Absolute last resort: split a text block by lines."""
     lines, line_chunks, current_line_chunk = text.split('\n'), [], ""
-
     def finalize_line_chunk(chunk: str):
         if chunk:
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
             if size_func(processed_chunk) >= min_size:
                 line_chunks.append(processed_chunk)
-
     for line in lines:
         line = line.strip()
         if not line: continue
@@ -139,12 +111,22 @@ def split_by_lines(text: str, max_size: int, min_size: int, size_func: Callable[
     finalize_line_chunk(current_line_chunk)
     return line_chunks
 
-def format_as_jsonl(chunks: List[str]):
-    for chunk in chunks: yield json.dumps({"text": chunk}) + '\n'
+# --- Formatting Functions (Updated) ---
 
-def format_as_alpaca(chunks: List[str]):
+def format_as_standard_json(chunks: List[str]) -> str:
+    """Formats the list of chunks into a single standard JSON array string."""
+    data = [{"text": chunk} for chunk in chunks]
+    return json.dumps(data, indent=2) # Using indent=2 for readability
+
+def format_as_jsonl(chunks: List[str]):
+    """Generator to yield JSONL formatted strings (one JSON object per line)."""
+    for chunk in chunks:
+        yield json.dumps({"text": chunk}) + '\n'
+
+def format_as_alpaca(chunks: List[str]) -> str:
+    """Formats the list of chunks into a single Alpaca-style JSON string."""
     alpaca_data = [{"instruction": "", "input": "", "output": chunk} for chunk in chunks]
-    return json.dumps(alpaca_data, indent=4)
+    return json.dumps(alpaca_data, indent=2)
 
 # --- Main Application Logic ---
 
@@ -157,18 +139,23 @@ def main():
     # ... (parser setup remains the same, with one addition)
     parser.add_argument("input_file", type=Path, help="Path to the input text file.")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-s", "--chunk_size", type=int, help="Maximum character size for each chunk.")
-    group.add_argument("-t", "--max_tokens", type=int, help="Maximum estimated token count for each chunk.")
+    group.add_argument("-s", "--chunk_size", type=int, help="Maximum character size.")
+    group.add_argument("-t", "--max_tokens", type=int, help="Maximum estimated token count.")
     
     parser.add_argument("--min_size", type=int, default=0, help="Minimum character size. Chunks smaller than this are skipped.")
     parser.add_argument("--min_tokens", type=int, default=0, help="Minimum estimated token count. Chunks smaller than this are skipped.")
     parser.add_argument(
         "--remove_title", type=int, default=0, metavar='MAX_TOKENS',
-        help="If a chunk starts with a line shorter than MAX_TOKENS followed by a double newline, remove it. Default: 0 (disabled)."
+        help="If a chunk starts with a line shorter than MAX_TOKENS followed by a double newline, remove it."
     )
     
-    parser.add_argument("-o", "--output_file", type=Path, default=None, help="Path to the output file (extension will be set by format).")
-    parser.add_argument("-f", "--format", choices=['jsonl', 'alpaca'], default='jsonl', help="Output format.")
+    parser.add_argument("-o", "--output_file", type=Path, default=None, help="Path to the output file.")
+    parser.add_argument(
+        "-f", "--format", 
+        choices=['json', 'jsonl', 'alpaca'], 
+        default='json', 
+        help="Output format. 'json' (default), 'jsonl', or 'alpaca'."
+    )
     parser.add_argument("--debug", action="store_true", help="If set, also save a human-readable .txt file for inspection.")
     
     args = parser.parse_args()
@@ -186,8 +173,14 @@ def main():
     if args.remove_title > 0:
         print(f"Removing titles shorter than {args.remove_title} tokens.", file=sys.stderr)
     
-    output_path = args.output_file.with_suffix('.json' if args.format == 'alpaca' else '.jsonl') if args.output_file else \
-                  args.input_file.with_suffix('.alpaca.json' if args.format == 'alpaca' else '.jsonl')
+    # --- Determine Output Path ---
+    file_extensions = {'json': '.json', 'jsonl': '.jsonl', 'alpaca': '.alpaca.json'}
+    output_suffix = file_extensions[args.format]
+    
+    if args.output_file:
+        output_path = args.output_file.with_suffix(output_suffix)
+    else:
+        output_path = args.input_file.with_suffix(output_suffix)
 
     # --- Main Processing Block ---
     try:
@@ -196,9 +189,13 @@ def main():
 
         print(f"Formatting {len(chunks)} chunks for output...", file=sys.stderr)
         with open(output_path, 'w', encoding='utf-8') as f:
-            if args.format == 'alpaca': f.write(format_as_alpaca(chunks))
-            else:
-                for line in format_as_jsonl(chunks): f.write(line)
+            if args.format == 'alpaca':
+                f.write(format_as_alpaca(chunks))
+            elif args.format == 'jsonl':
+                for line in format_as_jsonl(chunks):
+                    f.write(line)
+            else: # Default is 'json'
+                f.write(format_as_standard_json(chunks))
 
         print(f"\nSuccess! Output saved to '{output_path}'", file=sys.stderr)
 
