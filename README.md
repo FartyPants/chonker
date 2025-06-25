@@ -118,4 +118,7 @@ This is the third paragraph. It was too long to be combined with the previous ch
 | `--output_file` / `-o` | Path to the output file. If not set, it's auto-generated based on the input file name and format.       |
 | `--debug`              | If set, also saves a human-readable `.txt` file with separators for easy inspection.                    |
 
+added
+--remove_line_start "prefix"  removes any line that start with the string in "prefix"  Ex: --remove_line_start "[" 
+
 ---
