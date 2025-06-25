@@ -25,6 +25,17 @@ def split_into_sentences(text: str) -> list[str]:
     sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s', text)
     return [s.strip() for s in sentences if s.strip()]
 
+def remove_lines_starting_with(chunk: str, prefix: str) -> str:
+    """Removes any lines from the chunk that start with the given prefix."""
+    if not prefix:  # If no prefix is provided, do nothing.
+        return chunk
+    
+    # Split the chunk into lines, filter out the ones that start with the prefix (after stripping whitespace),
+    # and then join them back together.
+    good_lines = [line for line in chunk.split('\n') if not line.strip().startswith(prefix)]
+    return '\n'.join(good_lines)
+
+
 def remove_leading_title(chunk: str, max_title_tokens: int, size_func: Callable[[str], int]) -> str:
     """If a chunk starts with a short line followed by a double newline, it's considered a title and removed."""
     if max_title_tokens <= 0: return chunk
@@ -36,7 +47,7 @@ def remove_leading_title(chunk: str, max_title_tokens: int, size_func: Callable[
     except ValueError: pass
     return chunk
 
-def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
+def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int, line_start_prefix: str) -> list[str]:
     """Splits text into semantically meaningful chunks, respecting size limits and removing titles."""
     CHAPTER_DELIMITER, PARAGRAPH_DELIMITER = "\n\n\n", "\n\n"
     final_chunks = []
@@ -45,6 +56,7 @@ def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[
     def finalize_chunk(chunk: str):
         if chunk:
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
+            processed_chunk = remove_lines_starting_with(processed_chunk, line_start_prefix)
             if size_func(processed_chunk) >= min_size:
                 final_chunks.append(processed_chunk)
 
@@ -62,7 +74,7 @@ def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[
             else:
                 finalize_chunk(current_chunk)
                 if size_func(paragraph) > max_size:
-                    sub_chunks = split_oversized_text_block(paragraph, max_size, min_size, size_func, title_token_limit)
+                    sub_chunks = split_oversized_text_block(paragraph, max_size, min_size, size_func, title_token_limit, line_start_prefix)
                     final_chunks.extend(sub_chunks)
                     current_chunk = ""
                 else:
@@ -70,11 +82,12 @@ def smart_chunker(text: str, max_size: int, min_size: int, size_func: Callable[[
         finalize_chunk(current_chunk)
     return final_chunks
 
-def split_oversized_text_block(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
+def split_oversized_text_block(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int, line_start_prefix: str) -> list[str]:
     sentences, sub_chunks, current_sub_chunk = split_into_sentences(text), [], ""
     def finalize_sub_chunk(chunk: str):
         if chunk:
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
+            processed_chunk = remove_lines_starting_with(processed_chunk, line_start_prefix)
             if size_func(processed_chunk) >= min_size:
                 sub_chunks.append(processed_chunk)
     for sentence in sentences:
@@ -84,7 +97,7 @@ def split_oversized_text_block(text: str, max_size: int, min_size: int, size_fun
         else:
             finalize_sub_chunk(current_sub_chunk)
             if size_func(sentence) > max_size:
-                line_chunks = split_by_lines(sentence, max_size, min_size, size_func, title_token_limit)
+                line_chunks = split_by_lines(sentence, max_size, min_size, size_func, title_token_limit, line_start_prefix)
                 sub_chunks.extend(line_chunks)
                 current_sub_chunk = ""
             else:
@@ -92,11 +105,12 @@ def split_oversized_text_block(text: str, max_size: int, min_size: int, size_fun
     finalize_sub_chunk(current_sub_chunk)
     return sub_chunks
 
-def split_by_lines(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int) -> list[str]:
+def split_by_lines(text: str, max_size: int, min_size: int, size_func: Callable[[str], int], title_token_limit: int, line_start_prefix: str) -> list[str]:
     lines, line_chunks, current_line_chunk = text.split('\n'), [], ""
     def finalize_line_chunk(chunk: str):
         if chunk:
             processed_chunk = remove_leading_title(chunk, title_token_limit, size_func)
+            processed_chunk = remove_lines_starting_with(processed_chunk, line_start_prefix)
             if size_func(processed_chunk) >= min_size:
                 line_chunks.append(processed_chunk)
     for line in lines:
@@ -148,6 +162,10 @@ def main():
         "--remove_title", type=int, default=0, metavar='MAX_TOKENS',
         help="If a chunk starts with a line shorter than MAX_TOKENS followed by a double newline, remove it."
     )
+    parser.add_argument(
+        "--remove_line_start", type=str, default=None, metavar='PREFIX',
+        help="Remove any line that starts with the specified string/character (e.g., '[', '#')."
+    )
     
     parser.add_argument("-o", "--output_file", type=Path, default=None, help="Path to the output file.")
     parser.add_argument(
@@ -185,7 +203,7 @@ def main():
     # --- Main Processing Block ---
     try:
         input_text = args.input_file.read_text(encoding='utf-8')
-        chunks = smart_chunker(input_text, max_size, min_size, size_func, args.remove_title)
+        chunks = smart_chunker(input_text, max_size, min_size, size_func, args.remove_title, args.remove_line_start)
 
         print(f"Formatting {len(chunks)} chunks for output...", file=sys.stderr)
         with open(output_path, 'w', encoding='utf-8') as f:
