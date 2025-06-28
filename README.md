@@ -1,5 +1,8 @@
 # chonker
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q5Q5MOB4M)
+
+
 # Smart Text Chunker
 
 A sophisticated Python command-line tool for splitting large text files into smaller, semantically meaningful chunks. It's designed for preparing high-quality datasets for training and fine-tuning Large Language Models (LLMs).
