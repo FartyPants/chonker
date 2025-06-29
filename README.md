@@ -5,7 +5,7 @@
 
 # Smart Text Chunker
 
-A "sophisticated" Python command-line tool for splitting large text files into smaller, more manageable chunks of, shall we say, semantic relevance. It's designed for preparing high-quality datasets for training and fine-tuning Large Language Models (LLMs).
+A "sophisticated" Python command-line tool for splitting large text files into smaller, more manageable chunks of, shall we say, semantic relevance. It's designed for preparing TEXT datasets for training and fine-tuning Large Language Models (LLMs).
 
 Instead of naively splitting text by a fixed character count, this tool uses the inherent structure of a document (chapters, paragraphs, sentences) to create chunks that preserve context and meaning.
 
