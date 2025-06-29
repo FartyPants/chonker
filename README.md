@@ -117,7 +117,7 @@ This is the third paragraph. It was too long to be combined with the previous ch
 | `--min_size`           | Minimum character size. Chunks smaller than this are discarded. Use with `--chunk_size`.                |
 | `--min_tokens`         | Minimum estimated token count. Chunks smaller than this are discarded. Use with `--max_tokens`.         |
 | `--remove_title N`     | If a chunk starts with a line shorter than `N` tokens followed by a double newline, remove it.          |
-| `--format` / `-f`      | Output format. Choices: `jsonl` (default), `alpaca`.                                                    |
+| `--format` / `-f`      | Output format. Choices: `json` (default), `jsonl`, `alpaca`.                                            |
 | `--output_file` / `-o` | Path to the output file. If not set, it's auto-generated based on the input file name and format.       |
 | `--debug`              | If set, also saves a human-readable `.txt` file with separators for easy inspection.                    |
 
