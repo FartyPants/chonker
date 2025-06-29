@@ -23,7 +23,7 @@ Instead of naively splitting text by a fixed character count, this tool uses the
     -   `--min_tokens` / `--min_size`: Filter out insignificant chunks (e.g., lone titles or short lines) by setting a minimum size.
     -   `--remove_title`: Automatically detect and remove short chapter/section titles (e.g., "CHAPTER 1") from the beginning of chunks.
 -   **Multiple Output Formats**:
-    -   **JSONL (`.jsonl`)**: The default format, with one JSON object per line (`{"text": "..."}`). Ideal for streaming and large datasets.
+    -   **JSON (`.json`)**: The default format, with one JSON object per line (`{"text": "..."}`). Ideal for streaming and large datasets.
     -   **Alpaca (`.json`)**: A single JSON file formatted for fine-tuning with the popular Alpaca-LoRA library (`[{"instruction": "", "input": "", "output": "..."}, ...]`).
 -   **Debug Mode**:
     -   `--debug`: Generates a human-readable `.txt` file showing exactly how the text was chunked, complete with separators and size info for easy validation.
