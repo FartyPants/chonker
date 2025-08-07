@@ -9,9 +9,9 @@ A "sophisticated" Python command-line tool for splitting large text files into s
 
 Instead of naively splitting text by a fixed character count, this tool uses the inherent structure of a document (chapters, paragraphs, sentences) to create chunks that preserve context and meaning.
 
-## This tool is heavily featured in my huge book "The Cranky Man's Guide to LoRA & QLoRA" 
+## This tool is heavily featured in my book "The Cranky Man's Guide to LoRA & QLoRA" 
 
-<img width="200" height="320" alt="The Cranky Man's Guide to LoRA & QLoRA" src="https://github.com/user-attachments/assets/afdbaae1-54a6-421f-a52c-ce6ea4477514" />
+<img height="200" alt="The Cranky Man's Guide to LoRA & QLoRA" src="https://github.com/user-attachments/assets/afdbaae1-54a6-421f-a52c-ce6ea4477514" />
 
 Find it on [Amazon](https://www.amazon.com/dp/B0FLBTR2FS), [Apple Books](https://books.apple.com/us/book/the-cranky-mans-guide-to-lora-and-qlora/id6749593842), [Kobo](https://www.kobo.com/ca/en/ebook/the-cranky-man-s-guide-to-lora-and-qlora), [Barnes & Noble](https://www.barnesandnoble.com/w/the-cranky-mans-guide-to-lora-and-qlora-f-p-ham/1148001179)
 
